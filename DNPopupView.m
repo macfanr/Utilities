@@ -230,7 +230,7 @@
     [self _createContentLayer];
     [self _createCloseButton];
     [aView addSubview:self];
-    //[self _showAnimation:self.layer];
+    [self _showAnimation:self.layer];
 }
 
 - (void)dismiss

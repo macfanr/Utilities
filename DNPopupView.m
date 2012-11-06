@@ -60,6 +60,8 @@
 
 @implementation DNPopupView
 
+@synthesize contentSize;
+
 #define kShowAnimation  1
 #define kHideAnimation  2
 
@@ -115,70 +117,98 @@
 	return retPath;
 }
 
+- (void)_createContentLayer
+{
+    CALayer *rootLayer = [CALayer layer];
+    CGColorRef color = NULL;
+    
+    rootLayer.cornerRadius = 6;
+    rootLayer.frame = CGRectMake((NSWidth(self.frame) - contentSize.width)/2.0,
+                                 (NSHeight(self.frame) - contentSize.height)/2.0,
+                                 contentSize.width, contentSize.height);
+    
+    color = CGColorCreateGenericGray(0.7, 0.3);
+    rootLayer.backgroundColor = color; CGColorRelease(color);
+    
+    color = CGColorCreateGenericGray(0.7, 0.2);
+    rootLayer.borderColor = color; CGColorRelease(color);
+    rootLayer.borderWidth = 2;
+    
+    CGPathRef path = [self _newPathForRoundedRect:rootLayer.bounds radius:rootLayer.cornerRadius];
+    color = CGColorCreateGenericRGB(0.1, 0.1, 0.1, 0.2);
+    rootLayer.shadowRadius = 3;
+    rootLayer.shadowOpacity = 0.5;
+    rootLayer.shadowOffset = CGSizeMake(2, 2);
+    rootLayer.shadowPath = path; CGPathRelease(path);
+    rootLayer.shadowColor = color; CGColorRelease(color);
+    
+    //color = CGColorCreateGenericGray(0.01, 0.05);
+    //self.layer.backgroundColor = color; CGColorRelease(color);
+    self.layer.anchorPoint = CGPointMake(0.5, 0.5);
+    self.layer.position = self.layer.superlayer.position;
+    
+    [self.layer addSublayer:rootLayer];
+    
+}
+
 - (void)_setup
 {
     dispatch_once(&onceToken, ^{
         [self setWantsLayer:YES];
-        
-        CALayer *rootLayer = [CALayer layer];
-        CGColorRef color = NULL;
-        
-        rootLayer.cornerRadius = 6;
-        rootLayer.frame = CGRectMake(0, 0, NSWidth(self.frame), NSHeight(self.frame));
-        
-        color = CGColorCreateGenericGray(0.7, 0.5);
-        rootLayer.backgroundColor = color; CGColorRelease(color);
-        
-        color = CGColorCreateGenericGray(0.7, 0.2);
-        rootLayer.borderColor = color; CGColorRelease(color);
-        rootLayer.borderWidth = 2;
-        
-//        CGPathRef path = [self _newPathForRoundedRect:self.bounds radius:rootLayer.cornerRadius];
-//        color = CGColorCreateGenericRGB(0.1, 0.1, 0.1, 0.2);
-//        rootLayer.shadowRadius = 5;
-//        rootLayer.shadowOpacity = 0.8;
-//        rootLayer.shadowOffset = CGSizeMake(2, 2);
-//        rootLayer.shadowPath = path; CGPathRelease(path);
-//        rootLayer.shadowColor = color; CGColorRelease(color);
-
-        self.layer = rootLayer;
+        contentSize = NSInsetRect(self.bounds, 10, 10).size;
     });
 }
 
 - (void)_showAnimation:(CALayer*)aLayer
 {
-    CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"transform"];
+    CABasicAnimation *animation1 = [CABasicAnimation animationWithKeyPath:@"transform"];
+    animation1.fromValue = [NSValue valueWithCATransform3D:CATransform3DScale(aLayer.transform, 0.01, 0.01, 0.01)];
+    animation1.toValue = [NSValue valueWithCATransform3D:aLayer.transform];
     
-    animation.fromValue = [NSValue valueWithCATransform3D:CATransform3DScale(aLayer.transform, 0.01, 0.01, 0.01)];
-    animation.toValue = [NSValue valueWithCATransform3D:aLayer.transform];
-    animation.duration = .25f;
-    animation.removedOnCompletion = YES;
-    animation.delegate = self;
-    animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    CABasicAnimation *animation2 = [CABasicAnimation animationWithKeyPath:@"hidden"];
+    animation2.fromValue = [NSNumber numberWithFloat:1];
+    animation2.toValue = [NSNumber numberWithFloat:0];
+    
+    CAAnimationGroup *group = [CAAnimationGroup animation];
+    group.animations = [NSArray arrayWithObjects:animation1, animation2, nil];
+    group.removedOnCompletion = YES;
+    group.delegate = self;
+    group.duration = .25f;
+    group.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    
     animationTag = kShowAnimation;
-    [aLayer addAnimation:animation forKey:@"show"];
+    
+    [aLayer addAnimation:group forKey:@"show"];
 }
 
 - (void)_hideAnimation:(CALayer*)aLayer
 {
-    CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"transform"];
+    CABasicAnimation *animation1 = [CABasicAnimation animationWithKeyPath:@"transform"];
+    animation1.fromValue = [NSValue valueWithCATransform3D:aLayer.transform];
+    animation1.toValue = [NSValue valueWithCATransform3D:CATransform3DScale(aLayer.transform, 0.01, 0.01, 0.01)];
     
-    animation.fromValue = [NSValue valueWithCATransform3D:aLayer.transform];
-    animation.toValue = [NSValue valueWithCATransform3D:CATransform3DScale(aLayer.transform, 0.01, 0.01, 0.01)];
-    animation.duration = .25f;
-    animation.removedOnCompletion = NO;
-    animation.delegate = self;
-    animation.fillMode = kCAFillModeForwards;
-    animation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    CABasicAnimation *animation2 = [CABasicAnimation animationWithKeyPath:@"hidden"];
+    animation2.fromValue = [NSNumber numberWithFloat:0];
+    animation2.toValue = [NSNumber numberWithFloat:0.8];
+    
+    CAAnimationGroup *group = [CAAnimationGroup animation];
+    group.removedOnCompletion = NO;
+    group.delegate = self;
+    group.fillMode = kCAFillModeForwards;
+    group.animations = [NSArray arrayWithObjects:animation1, animation2, nil];
+    group.duration = .25f;
+    group.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    
     animationTag = kHideAnimation;
-    [aLayer addAnimation:animation forKey:@"hide"];
+    
+    [aLayer addAnimation:group forKey:@"hide"];
 }
 
 - (void)_createCloseButton
 {
     PopupViewCloseButton *closeButton = [[PopupViewCloseButton alloc]initWithFrame:NSMakeRect(0, 0, 25, 25)];
-    [closeButton setFrameOrigin:NSMakePoint(NSWidth(self.frame) - NSWidth(closeButton.frame) - 3,
-                                            NSHeight(self.frame) - NSHeight(closeButton.frame) - 3)];
+    [closeButton setFrameOrigin:NSMakePoint(contentSize.width- NSWidth(closeButton.frame) - 3 + (NSWidth(self.frame) - contentSize.width)/2.0,
+                                            contentSize.height - NSHeight(closeButton.frame) - 3 + (NSHeight(self.frame) - contentSize.height)/2.0)];
     [self addSubview:closeButton];
     [closeButton setTarget:self];
     [closeButton setAction:@selector(dismiss)];
@@ -188,7 +218,6 @@
 - (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
 {
     if (animationTag == kShowAnimation) {
-        //ShadowLayer(self.layer);
         [[self window] makeFirstResponder:self];
     }
     else if (animationTag == kHideAnimation) {
@@ -198,9 +227,10 @@
 
 - (void)showInView:(NSView*)aView
 {
+    [self _createContentLayer];
     [self _createCloseButton];
     [aView addSubview:self];
-    [self _showAnimation:self.layer];
+    //[self _showAnimation:self.layer];
 }
 
 - (void)dismiss

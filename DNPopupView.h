@@ -11,7 +11,10 @@
 @interface DNPopupView : NSView {
     dispatch_once_t onceToken;
     NSUInteger      animationTag;
+    NSSize          contentSize;
 }
+
+@property (assign) NSSize contentSize;
 
 - (void)showInView:(NSView*)aView;
 

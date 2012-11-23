@@ -13,5 +13,7 @@ DNLinkButton: subclass from NSButton to display web link
 
 DNTrackButton: subclass from NSButton, can has 3 states(normal. mouse down and mouse in)
 
+NSImage+CGImage: the NSImage category creat cgimage
+
 
 
